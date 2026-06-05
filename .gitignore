@@ -1,0 +1,16 @@
+# 산출물 (스크립트로 재생성 가능) — RE_count_*.csv 는 추적
+output/*
+!output/figures/
+output/figures/*
+!output/RE_count_*.csv
+!output/.gitkeep
+
+# 원자료 (직접 배치)
+data/*
+!data/README.md
+
+# R / OS
+.Rhistory
+.RData
+.Rproj.user/
+.DS_Store

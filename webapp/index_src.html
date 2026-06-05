@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>타석 시뮬레이터 — DRV · DRV+ · DRWAR</title>
+<script src="webapp_data.js"></script>
+<style>
+  :root{ --navy:#1f3a5f; --blue:#2f6fb3; --red:#c0504d; --green:#2e8b3d;
+         --gold:#f5b400; --bg:#f4f6f9; --card:#fff; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; background:var(--bg); color:#1a2233; font-size:24px;
+        font-family:'Apple SD Gothic Neo','Pretendard','Malgun Gothic',sans-serif; }
+  /* 상단 고정: 제목 + 지표 + 직전 공가치 (한 덩어리로 스크롤해도 고정) */
+  .topfix{ position:sticky; top:0; z-index:20; background:#fff; padding:8px 12px;
+           box-shadow:0 3px 12px rgba(0,0,0,.13); }
+  .topfix .brand{ font-size:28px; font-weight:800; color:var(--navy); margin-bottom:10px; }
+  .topfix .brand small{ font-size:20px; font-weight:600; color:#8a97a8; }
+  .mbar{ display:flex; gap:10px; }
+  .mbar .m{ flex:1; text-align:center; background:#f7f9fc; border:1px solid #e6ecf3;
+            border-radius:11px; padding:12px 5px; }
+  .mbar .name{ font-size:19px; color:#5a6b80; }
+  .mbar .val{ font-size:42px; font-weight:800; color:var(--navy); line-height:1.1; margin:3px 0; }
+  .mbar .dlt{ font-size:18px; font-weight:700; min-height:23px; }
+  .up{ color:var(--green);} .down{ color:var(--red);} .flat{ color:#9aa6b5;}
+  .mbar .val.up{ color:var(--green);} .mbar .val.down{ color:var(--red);}   /* 큰 숫자도 상승=초록/하락=빨강 */
+  .laststep{ margin-top:8px; padding:12px 14px; border-radius:10px;
+             background:#eef4fb; font-size:22px; line-height:1.5; }
+
+  .wrap{ max-width:1500px; margin:12px auto; padding:0 16px;
+         display:flex; flex-wrap:wrap; gap:18px; align-items:flex-start; }
+  /* 칸이 좁아지지 않게: 충분히 넓을 때만 2단, 아니면 1단 전체폭 */
+  .panel{ flex:1 1 480px; min-width:440px; }
+  /* 진짜 넓은 화면(2단)일 때만 투구 기록 패널을 스크롤 따라오게 */
+  @media (min-width:1000px){
+    .logpanel{ position:sticky; top:245px; align-self:flex-start; }
+    .logpanel .log{ max-height:60vh; }
+  }
+  .card{ background:var(--card); border-radius:14px; padding:16px;
+         box-shadow:0 2px 10px rgba(0,0,0,.06); margin-bottom:16px; }
+  .card h2{ margin:0 0 12px; font-size:27px; }
+
+  .posrow{ display:flex; gap:8px; margin-bottom:8px; }
+  .posbtn{ flex:1; padding:16px; font-size:23px; border-radius:10px; border:1px solid #cdd5e0;
+           background:#fff; font-weight:700; cursor:pointer; }
+  .posbtn.sel{ background:var(--navy); color:#fff; border-color:var(--navy); }
+  #search{ width:100%; padding:16px; font-size:24px; border:1px solid #cdd5e0; border-radius:10px; margin-bottom:8px; }
+  select{ width:100%; padding:16px; font-size:24px; border:1px solid #cdd5e0; border-radius:10px; background:#fff; }
+  #pcount{ font-size:20px; color:#8a97a8; margin-left:4px; }
+  .pbase{ font-size:17px; color:#5a6b80; margin-top:8px; line-height:1.55; }
+
+  .countbar{ text-align:center; font-size:54px; font-weight:800; letter-spacing:2px;
+             color:var(--navy); margin:4px 0 10px; }
+  .countbar small{ font-size:22px; color:#8a97a8; font-weight:400; letter-spacing:0; }
+  .zone-wrap{ position:relative; width:min(420px,80vw); aspect-ratio:1; margin:0 auto;
+              background:#eef1f5; border-radius:10px; touch-action:manipulation; }
+  .outer{ position:absolute; width:50%; height:50%; font-size:20px; color:#7a8aa0; cursor:pointer; display:flex; }
+  .z11{ top:0;left:0;border-top-left-radius:10px;align-items:flex-start;justify-content:flex-start;padding:8px;}
+  .z12{ top:0;right:0;border-top-right-radius:10px;align-items:flex-start;justify-content:flex-end;padding:8px;}
+  .z13{ bottom:0;left:0;border-bottom-left-radius:10px;align-items:flex-end;justify-content:flex-start;padding:8px;}
+  .z14{ bottom:0;right:0;border-bottom-right-radius:10px;align-items:flex-end;justify-content:flex-end;padding:8px;}
+  .inner-grid{ position:absolute; top:17%; left:17%; width:66%; height:66%;
+               display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr);
+               gap:3px; background:#1a2233; border:3px solid #1a2233; border-radius:4px; }
+  .inner{ background:#dbe4f0; display:flex; align-items:center; justify-content:center; font-size:26px; color:#4a5a72; cursor:pointer; }
+  .zone.sel{ background:var(--gold)!important; color:#1a2233!important; font-weight:700; }
+  .ztag{ text-align:center; font-size:19px; color:#8a97a8; margin-top:6px; }
+
+  .lbl{ font-size:22px; color:#5a6b80; margin:16px 0 6px; font-weight:700; }
+  #pitchrow,#outrow{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .btn{ min-height:78px; font-size:25px; border:1px solid #cdd5e0; border-radius:11px;
+        background:#fff; cursor:pointer; font-weight:600; }
+  .btn:active{ transform:scale(.96); } .btn:hover{ border-color:var(--blue); }
+  .btn.sel{ background:var(--blue); color:#fff; border-color:var(--blue); }
+  .hitbtn{ color:var(--green); font-weight:800; }
+  /* 타구질 입력 패널 */
+  #hitpanel{ margin-top:12px; padding:14px; background:#f3f7fc; border:1px solid #dbe6f3; border-radius:12px; }
+  .presets{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:12px; }
+  .preset{ padding:13px 8px; font-size:17px; border:1px solid #cdd5e0; border-radius:10px;
+           background:#fff; cursor:pointer; font-weight:600; }
+  .preset:hover{ border-color:var(--blue); }
+  .sliderbox label{ display:block; font-size:19px; margin:10px 0 4px; font-weight:600; color:#3a4a60; }
+  .sliderbox input[type=range]{ width:100%; height:32px; }
+  .avpreview{ margin:12px 0; padding:12px; background:#fff; border-radius:10px;
+              font-size:21px; text-align:center; border:1px solid #e6ecf3; }
+  .btn.confirm{ width:100%; background:var(--green); color:#fff; border-color:var(--green); margin-top:4px; }
+  .tools{ margin-top:12px; } .tools button{ width:100%; padding:14px; border-radius:11px; font-size:26px;
+          border:1px solid #cdd5e0; background:#fff; font-weight:600; cursor:pointer; }
+  .hint{ font-size:19px; color:#8a97a8; margin-top:10px; line-height:1.6; }
+  .log{ max-height:300px; overflow-y:auto; }
+  .log .row{ display:flex; justify-content:space-between; padding:12px 11px; border-bottom:1px solid #eef1f5; font-size:21px; }
+  .log .row.term{ background:#fff6e8; font-weight:700; }
+  .pos{ color:var(--green);} .neg{ color:var(--red);}
+  .flash{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%); background:#1a2233;
+          color:#fff; padding:12px 22px; border-radius:20px; font-size:18px; opacity:0;
+          transition:opacity .25s; pointer-events:none; z-index:20; }
+  .flash.on{ opacity:.95; }
+</style>
+</head>
+<body>
+<div class="topfix">
+  <div class="brand">⚾ 타석 시뮬레이터 <small>— DRV · DRV+ · DRWAR 실시간</small></div>
+  <div class="mbar">
+    <div class="m"><div class="name">DRV (런)</div><div class="val" id="mDRV">–</div><div class="dlt" id="dDRV"></div></div>
+    <div class="m"><div class="name">DRV+</div><div class="val" id="mPLUS">–</div><div class="dlt" id="dPLUS"></div></div>
+    <div class="m"><div class="name">DRWAR (승)</div><div class="val" id="mWAR">–</div><div class="dlt" id="dWAR"></div></div>
+  </div>
+  <div class="laststep" id="laststep">선수 선택 → 존 → 구종 → 결과 버튼을 누르면 지표가 바뀝니다.</div>
+</div>
+
+<div class="wrap">
+  <div class="panel">
+    <div class="card">
+      <h2>① 선수 선택 <span id="pcount"></span></h2>
+      <div class="posrow">
+        <button class="posbtn sel" data-pos="타자">⚾ 타자</button>
+        <button class="posbtn" data-pos="투수">🥎 투수</button>
+      </div>
+      <input id="search" placeholder="이름 검색 (예: Judge, Soto)" autocomplete="off">
+      <select id="player" size="1"></select>
+      <div class="pbase" id="pbase"></div>
+    </div>
+
+    <div class="card">
+      <h2>② 공 위치 · 구종 · 결과</h2>
+      <div class="countbar"><span id="count">0 - 0</span> <small>(볼 - 스트라이크)</small></div>
+      <div class="zone-wrap" id="zonewrap">
+        <div class="outer zone z11" data-zone="11"><span>11</span></div>
+        <div class="outer zone z12" data-zone="12"><span>12</span></div>
+        <div class="outer zone z13" data-zone="13"><span>13</span></div>
+        <div class="outer zone z14" data-zone="14"><span>14</span></div>
+        <div class="inner-grid">
+          <div class="inner zone" data-zone="1">1</div><div class="inner zone" data-zone="2">2</div><div class="inner zone" data-zone="3">3</div>
+          <div class="inner zone" data-zone="4">4</div><div class="inner zone" data-zone="5">5</div><div class="inner zone" data-zone="6">6</div>
+          <div class="inner zone" data-zone="7">7</div><div class="inner zone" data-zone="8">8</div><div class="inner zone" data-zone="9">9</div>
+        </div>
+      </div>
+      <div class="ztag">안 1~9 = 스트라이크 존 · 밖 11~14 = 존 밖</div>
+      <div class="lbl">구종</div>
+      <div id="pitchrow"></div>
+      <div class="lbl">결과 (누르면 카운트·지표 변화)</div>
+      <div class="out" id="outrow">
+        <button class="btn" data-out="헛스윙">헛스윙</button>
+        <button class="btn" data-out="루킹">루킹</button>
+        <button class="btn" data-out="파울">파울</button>
+        <button class="btn" data-out="데드볼">데드볼</button>
+        <button class="btn hitbtn" data-out="타격" style="grid-column:span 2">⚾ 타격 (인플레이)</button>
+      </div>
+      <div id="hitpanel" style="display:none">
+        <div class="lbl">타구질 입력 · A 점수로 가치 결정 (단타·2루타 구분 없음)</div>
+        <div class="hint" style="margin:0 0 8px">① 프리셋 = 누르면 <b>바로 타석 종료</b> &nbsp; ② 직접 조절 = 슬라이더 → 맨 아래 초록 버튼</div>
+        <div class="presets" id="presets"></div>
+        <div class="sliderbox">
+          <label>타구속도 EV <b id="evVal">95</b> mph</label>
+          <input type="range" id="evSlider" min="40" max="120" step="1" value="95">
+          <label>발사각 LA <b id="laVal">20</b>°</label>
+          <input type="range" id="laSlider" min="-30" max="60" step="1" value="20">
+        </div>
+        <div class="avpreview" id="avPreview"></div>
+        <button class="btn confirm" id="hitConfirm">이 타구로 타석 종료 →</button>
+      </div>
+      <div class="tools"><button onclick="resetSession()">세션 초기화</button></div>
+      <div class="hint">헛스윙/파울=스트라이크↑ · 존 안 루킹=스트라이크↑ · 존 밖 루킹=볼↑ · 3S=삼진 · 4B=볼넷 · 2S 파울=유지 · 데드볼=몸쪽(1·4·7·11·13)만</div>
+    </div>
+  </div>
+
+  <div class="panel logpanel">
+    <div class="card">
+      <h2>📋 투구 기록</h2>
+      <div class="pbase" id="pastat"></div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div class="flash" id="flash"></div>
+<script src="app.js"></script>
+</body>
+</html>
