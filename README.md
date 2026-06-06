@@ -1,6 +1,6 @@
 # DRV · DRV+ · DRWAR — 타구 질·상황 난이도 기반 베이지안 야구 평가지표
 
-STAT 9703-01 *Analysis of Sports Big Data* (Yonsei University) · **Team 6** — 이승민 · 이연제 · 정달민 · 정서현
+STAT 9703-01 *Analysis of Sports Big Data* (Yonsei University) · **Team 6** — 정서현 · () · () · ()
 
 기존 야구 평가지표(wRC+·ERA+·WAR)는 대부분 **결과(outcome) 기반**이라 ① 수비·BABIP 운, ② 상황 난이도,
 ③ 타격 중간 과정(선구안·커맨드), ④ 소표본 불안정을 제대로 다루지 못한다. 본 프로젝트는 이 네 빈틈을
